@@ -1,1 +1,1 @@
-# claude-settings
+클로드 세팅입니다.
