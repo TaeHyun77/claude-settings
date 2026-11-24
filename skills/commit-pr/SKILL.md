@@ -3,6 +3,13 @@ name: commit-pr
 description: 현재 작업 트리의 변경 사항으로 브랜치명·커밋 메시지·PR 내용을 추천하고, 사용자가 확인하면 브랜치 생성, 커밋, 푸시, PR 생성까지 진행한다
 disable-model-invocation: true
 allowed-tools: Bash(cat ~/.claude/rules/git-workflow.md), Bash(git *), Bash(gh pr create *), Bash(gh pr view *), Bash(./gradlew *)
+hooks:
+  PreToolUse:
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: 'bash "$HOME/.claude/skills/commit-pr/check.sh"'
+          timeout: 120
 ---
 
 # 변경 사항 커밋·PR 생성
@@ -54,7 +61,11 @@ allowed-tools: Bash(cat ~/.claude/rules/git-workflow.md), Bash(git *), Bash(gh p
 
 - 새 브랜치: `git checkout main` → `git pull --ff-only` → `git checkout -b <브랜치명>`. 작업 트리 변경과 충돌해 checkout이나 pull이 실패하면 멈추고 보고한다.
 - 현재 브랜치 사용: 브랜치를 바꾸지 않는다.
-- `git add <파일 지정>`으로 올리고, `git diff --staged --stat`으로 포함 내용을 확인한 뒤 커밋한다. 분할이면 커밋마다 반복한다.
+- `git add <파일 지정>`으로 올리고, `git diff --staged --stat`으로 포함 내용을 확인한 뒤 커밋한다. 분할이면 커밋마다 반복한다. `git commit -a`는 쓰지 않는다.
+- 커밋 직전에 훅(`check.sh`)이 staged된 `.java` 파일만 Checkstyle로 검사한다. 따로 실행하지 않는다.
+  - 훅이 위반으로 커밋을 막으면 바로 고치지 않는다. 위반을 "이번에 바꾼 줄"과 "원래 있던 줄"로 나눠 목록과 수정안을 보여 주고, AskUserQuestion으로 묻는다: 이번에 바꾼 줄만 수정 / 파일의 위반 전부 수정 / 중단.
+  - 수정하면 해당 파일을 다시 `git add`하고 커밋을 재시도한다. 훅을 피하려고 커밋 대상에서 파일을 빼지 않는다.
+  - 훅이 실행 실패(Java·jar 없음 등)로 막으면 멈추고 그대로 보고한다.
 - `git push -u origin <브랜치명>`
 - `gh pr view`로 이미 열린 PR이 있는지 확인한다. 있으면 새로 만들지 않고 그 URL을 보고한다. 없으면 `gh pr create --base main --title "<제목>" --body "<본문>"`.
 
@@ -66,5 +77,5 @@ allowed-tools: Bash(cat ~/.claude/rules/git-workflow.md), Bash(git *), Bash(gh p
 ## 보고
 
 - 브랜치명, 커밋 해시와 메시지, PR URL
-- 검증 명령과 결과(통과/실패/건너뜀과 이유)
+- 검증 명령과 결과(통과/실패/건너뜀과 이유), Checkstyle 위반으로 수정한 내용
 - 제외한 파일
