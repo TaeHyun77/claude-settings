@@ -47,7 +47,7 @@
 
 ## 커밋 규칙
 
-@rules/commit.md
+@rules/git-workflow.md
 
 ## 문서 동기화
 
